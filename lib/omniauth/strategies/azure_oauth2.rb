@@ -3,7 +3,7 @@ require 'jwt'
 
 module OmniAuth
   module Strategies
-    class AzureOauth2 < OmniAuth::Strategies::OAuth2
+    class AzureOauth2  < OmniAuth::Strategies::OAuth2
       BASE_AZURE_URL = 'https://login.microsoftonline.com'
 
       option :name, 'azure_oauth2'
@@ -13,7 +13,7 @@ module OmniAuth
       # AD resource identifier
       option :resource, '00000002-0000-0000-c000-000000000000'
 
-      # tenant_provider must return client_id, client_secret and optionally tenant_id and base_azure_url
+      # tenant_provider must return aad_client_id, aad_client_secret and optionally aad_tenant_id and base_azure_url
       args [:tenant_provider]
 
       def client
@@ -23,17 +23,17 @@ module OmniAuth
           provider = options  # if pass has to config, get mapped right on to options
         end
 
-        options.client_id = provider.client_id
-        options.client_secret = provider.client_secret
-        options.tenant_id =
-          provider.respond_to?(:tenant_id) ? provider.tenant_id : 'common'
-        options.base_azure_url = 
+        options.client_id = provider.aad_client_id
+        options.client_secret = provider.aad_client_secret
+        options.aad_tenant_id =
+          provider.respond_to?(:aad_tenant_id) ? provider.aad_tenant_id : 'common'
+        options.base_azure_url =
           provider.respond_to?(:base_azure_url) ? provider.base_azure_url : BASE_AZURE_URL
 
-        options.authorize_params.domain_hint = provider.domain_hint if provider.respond_to?(:domain_hint) && provider.domain_hint
+        options.authorize_params.aad_domain_hint = provider.aad_domain_hint if provider.respond_to?(:aad_domain_hint) && provider.aad_domain_hint
         options.authorize_params.prompt = request.params['prompt'] if request.params['prompt']
-        options.client_options.authorize_url = "#{options.base_azure_url}/#{options.tenant_id}/oauth2/authorize"
-        options.client_options.token_url = "#{options.base_azure_url}/#{options.tenant_id}/oauth2/token"
+        options.client_options.authorize_url = "#{options.base_azure_url}/#{options.aad_tenant_id}/oauth2/authorize"
+        options.client_options.token_url = "#{options.base_azure_url}/#{options.aad_tenant_id}/oauth2/token"
 
         options.token_params.resource = options.resource
         super
@@ -51,7 +51,9 @@ module OmniAuth
           last_name: raw_info['family_name'],
           email: raw_info['email'] || raw_info['upn'],
           oid: raw_info['oid'],
-          tid: raw_info['tid']
+          tid: raw_info['tid'],
+          aud: raw_info['aud'],
+          groups: raw_info['groups']
         }
       end
 
@@ -61,7 +63,8 @@ module OmniAuth
 
       def raw_info
         # it's all here in JWT http://msdn.microsoft.com/en-us/library/azure/dn195587.aspx
-        @raw_info ||= ::JWT.decode(access_token.token, nil, false).first
+        # Groups (along with all other data) are in the id_token so we will decode this
+        @raw_info ||= ::JWT.decode(access_token.params['id_token'], nil, false).first
       end
 
     end
