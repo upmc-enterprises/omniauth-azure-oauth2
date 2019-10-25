@@ -127,11 +127,20 @@ The following information is provided back to you for this provider:
 ## notes
 
 When you make a request to WAAD you must specify a resource. The gem currently assumes this is the AD identified as '00000002-0000-0000-c000-000000000000'.
-This can be passed in as part of the config. It currently isn't designed to be dynamic.
+This can be passed in as part of the config.
 
 ```ruby
 use OmniAuth::Builder do
   provider :azure_oauth2, TenantInfo, resource: 'myresource'
+end
+```
+
+The resource can be provided dynamically by setting `env['omniauth.params']['azure_resource']` in the rack env.  You can do this using an OmniAuth callback:
+
+```ruby
+OmniAuth.config.before_callback_phase do |env|
+  resource = find_my_dynamic_resource
+  env['omniauth.params']['azure_resource'] = resource
 end
 ```
 
